@@ -1,0 +1,3 @@
+digraph "import_graph" {
+  "MasterThesis.MyTopology" [shape=house];
+}
