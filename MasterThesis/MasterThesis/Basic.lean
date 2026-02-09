@@ -213,7 +213,7 @@ def ProperPush_func_map {F G : Presheaf Ab X} (f : X ⟶ Y) (α : F ⟶ G) (U : 
 
 /- The Functor that sends a Sheaf on X to its proper pushforward-/
 @[simps!]
-def ProperPushfwd (f : X ⟶ Y) : Presheaf Ab X ⥤ Presheaf Ab Y :=
+def ProperPushfwdPresheaf (f : X ⟶ Y) : Presheaf Ab X ⥤ Presheaf Ab Y :=
   {
     obj F := ProperPush_func_obj F f
     map α :=  { app U :=  AddCommGrpCat.ofHom (ProperPush_func_map f α (unop U))
@@ -229,11 +229,12 @@ def ProperPushfwd (f : X ⟶ Y) : Presheaf Ab X ⥤ Presheaf Ab Y :=
       rfl
   }
 
+
 @[simp]
-theorem PropPushfoward_map_apply' (f : X ⟶ Y) {ℱ 𝒢 : X.Presheaf Ab} (α : ℱ ⟶ 𝒢) {U : (Opens Y)ᵒᵖ} : ((((ProperPushfwd f)).map α).app U) = AddCommGrpCat.ofHom (ProperPush_func_map f α (unop U)) := rfl
+theorem PropPushfoward_map_apply' (f : X ⟶ Y) {ℱ 𝒢 : X.Presheaf Ab} (α : ℱ ⟶ 𝒢) {U : (Opens Y)ᵒᵖ} : ((((ProperPushfwdPresheaf f)).map α).app U) = AddCommGrpCat.ofHom (ProperPush_func_map f α (unop U)) := rfl
 
 /-The map from the proper pushforward in to the pushforward-/
-def ProperPush_into_Push (f : X ⟶ Y) : (ProperPushfwd f) ⟶ (pushforward Ab f) :=
+def ProperPush_into_Push (f : X ⟶ Y) : (ProperPushfwdPresheaf f) ⟶ (pushforward Ab f) :=
   {
     app F :=
       {
@@ -248,8 +249,8 @@ lemma ProperPush_into_Push_app_injective (F : Presheaf Ab X) (f : X ⟶ Y) (U : 
   apply AddSubgroup.subtype_injective
 
 /- The properpushforward of a sheaf is a sheaf-/
-theorem ProperPush_isSheaf (F : Presheaf Ab X) (f : X ⟶ Y) (hF : F.IsSheaf) : ((ProperPushfwd (f : X ⟶ Y)).obj F).IsSheaf := by
-  apply (isSheaf_iff_isSheafUniqueGluing ((ProperPushfwd (f : X ⟶ Y)).obj F)).2
+theorem ProperPush_isSheaf (f : X ⟶ Y) (F : Presheaf Ab X) (hF : F.IsSheaf) : ((ProperPushfwdPresheaf (f : X ⟶ Y)).obj F).IsSheaf := by
+  apply (isSheaf_iff_isSheafUniqueGluing ((ProperPushfwdPresheaf (f : X ⟶ Y)).obj F)).2
   intro ι U sf sf_comp
   /- The plan here is that we know already that the pushforward of a sheaf is a sheaf. therefore we obtain a section that glues the images of the inclusion. We show that that section is proper, i.e. in fact lies in the proper pushforward -/
   /- this is the family in question. I just noticed that mathlib has a theorem for this. Maybe i will adapt this later.-/
@@ -310,7 +311,7 @@ theorem ProperPush_isSheaf (F : Presheaf Ab X) (f : X ⟶ Y) (hF : F.IsSheaf) : 
     exact h
   /-our candidate for the glued section as well as the proof that the restriction to U i is sf i-/
   use ⟨ιs, ιs_proper⟩
-  have nat (i: ι) : ((ProperPush_into_Push f).app F).app (op (U i)) (((ProperPushfwd f).obj F).map (Opens.leSupr U i).op (⟨ιs, ιs_proper⟩)) = sf' i :=  by
+  have nat (i: ι) : ((ProperPush_into_Push f).app F).app (op (U i)) (((ProperPushfwdPresheaf f).obj F).map (Opens.leSupr U i).op (⟨ιs, ιs_proper⟩)) = sf' i :=  by
     have h' := congrArg (fun φ => φ ⟨ιs, ιs_proper⟩) (((ProperPush_into_Push f).app F).naturality ((Opens.leSupr U i).op))
     dsimp at h'
     dsimp [ProperPush_into_Push]
@@ -333,7 +334,19 @@ theorem ProperPush_isSheaf (F : Presheaf Ab X) (f : X ⟶ Y) (hF : F.IsSheaf) : 
   apply ProperPush_into_Push_app_injective
   exact h
 
+@[simps]
+def ProperPushfwdSheaf (f : X ⟶ Y) : Sheaf Ab X ⥤ Sheaf Ab Y where
+  obj F := ⟨(ProperPushfwdPresheaf f).obj F.1, ProperPush_isSheaf f F.1 F.2⟩
+  map α := ⟨(ProperPushfwdPresheaf f).map α.1⟩
+  map_id F := by rfl
+  map_comp α β := by rfl
 
+/-alternative that does not work but would be cleaner: (Das ist eine gute Frage für Joel, weil es eigentlich nicht sein kann, das mathlib da keine gute api für hat)
+def ProperPushfwdSheaf' (f : X ⟶ Y) : Sheaf Ab X ⥤ Sheaf Ab Y :=
+  ObjectProperty.lift (IsSheaf)
+    (Sheaf.forget Ab X ⋙ ProperPushfwdPresheaf f)
+    (fun F ↦ ProperPush_isSheaf (f : X ⟶ Y) F.1 F.2)-/
 
+theorem proper_base_change {Z : TopCat} [T2Space X] [LocallyCompactSpace X] [T2Space Y] [LocallyCompactSpace Y] [T2Space Z] [LocallyCompactSpace Z] (f : Z ⟶ X) (g : Y ⟶ X) :  Nonempty (ProperPushfwdSheaf f ⋙ Sheaf.pullback Ab g ≅ (TopCat.Sheaf.pullback Ab (Limits.pullback.fst f g)) ⋙ ProperPushfwdSheaf (Limits.pullback.snd f g)) := by sorry
 
 
